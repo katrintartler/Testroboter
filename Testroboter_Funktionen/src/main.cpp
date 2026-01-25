@@ -1,30 +1,26 @@
 #include <Arduino.h> 
 #include <NimBLEDevice.h>
-#include <Stepper.h> 
 #include <DFRobotDFPlayerMini.h> 
+#include <ESP32Servo.h> 
  
+// SERVO SETTINGS 
+Servo myServo1; 
+Servo myServo2; 
+#define SERVO1_PIN 26; // funktioniert stand 2501 nur mit magic numbers NOCHMAL ANSCHAUEN !!!
+#define SERVO2_PIN 27; 
 
-// MOTOR SETTINGS 
-const int stepsPerRevolution = 1024; 
-const int IN1_1 = 14; 
-const int IN1_2 = 27; 
-const int IN1_3 = 26; 
-const int IN1_4 = 25; 
 
-const int IN2_1 = 16; 
-const int IN2_2 = 17; 
-const int IN2_3 = 33; 
-const int IN2_4 = 32; 
+bool rotate_servo1_flag = false; 
+bool rotate_servo2_flag = false; 
+int pos = 0; 
+int direction = -1; 
+unsigned long lastMoveTime = 0;
+const int moveInterval = 20; // 20ms movetime 
 
-Stepper myStepper1(stepsPerRevolution, IN1_1, IN1_2, IN1_3, IN1_4); 
-Stepper myStepper2(stepsPerRevolution, IN2_1, IN2_2, IN2_3, IN2_4); 
-
-bool rotate1_flag = false; 
-bool rotate2_flag = false; 
 
 // SPEAKER SETTINGS 
 HardwareSerial FPSerial(2); 
-DFRobotDFPlayerMini myPlayer;
+ DFRobotDFPlayerMini myPlayer;
 
 bool crying_flag = false; 
 bool brabbeln_flag = false; 
@@ -38,13 +34,14 @@ class CommandCallback :
       //Serial.print("Received BLE command: ");
       //Serial.println(cmd.c_str());
 
-    // MOTOR Callbacks
-    if (cmd == "rotate1") {
-      rotate1_flag = true; 
+    // SERVO Callbacks
+    if (cmd == "rotate_servo1") {
+      rotate_servo1_flag == true; 
     }
-    if (cmd == "rotate2") {
-      rotate2_flag = true; 
+     if (cmd == "rotate_servo2") {
+      rotate_servo2_flag == true; 
     }
+
     // SPEAKER Callbacks 
     if (cmd == "crying"){
       crying_flag = true; 
@@ -66,15 +63,19 @@ class CommandCallback :
 
 void setup() {
   Serial.begin(115200);
-  // MOTOR
-  myStepper1.setSpeed(10); 
-  myStepper2.setSpeed(10); 
+ 
   // SPEAKER 
   FPSerial.begin(9600, SERIAL_8N1, /*RX=*/ 18, /*TX=*/ 19);
   if (!myPlayer.begin(FPSerial, true, true)) {
     Serial.println("DFPlayer nicht gefunden");
     while (true);
   }
+
+  // SERVO
+  myServo1.attach(26); 
+  myServo2.attach(27); 
+  myServo1.write(0); 
+  myServo2.write(0);
 
 
   // BLE init 
@@ -108,13 +109,45 @@ void setup() {
 
 void loop() {
  
-  if (rotate1_flag) {
-        rotate1_flag = false;
-        myStepper1.step(stepsPerRevolution);
+  // SERVO 
+  if (rotate_servo1_flag) {
+      rotate_servo1_flag = false; 
+      if (millis() - lastMoveTime >= moveInterval) {
+      lastMoveTime = millis();
+
+      pos += direction;
+
+      if (pos >= 90) {
+        pos = 90;
+        direction = -1;
+      }
+      if (pos <= 0) {
+        pos = 0;
+        direction = 1;
+      }
+
+      myServo1.write(pos);
     }
-  if (rotate2_flag) {
-    rotate2_flag = false; 
-    myStepper2.step(stepsPerRevolution); 
+  }
+
+  if (rotate_servo2_flag) {
+      rotate_servo2_flag = false; 
+      if (millis() - lastMoveTime >= moveInterval) {
+      lastMoveTime = millis();
+
+      pos += direction;
+
+      if (pos >= 90) {
+        pos = 90;
+        direction = -1;
+      }
+      if (pos <= 0) {
+        pos = 0;
+        direction = 1;
+      }
+
+      myServo2.write(pos);
+    }
   }
 
   if (crying_flag){

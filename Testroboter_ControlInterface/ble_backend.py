@@ -36,11 +36,11 @@ async def ble_send_cmds(data: bytes):
 
 
 
-def rotate1():
-    print("in rotate1")
-    asyncio.run_coroutine_threadsafe(ble_send_cmds(b"rotate1"), ble_loop)
-def rotate2():
-    asyncio.run_coroutine_threadsafe(ble_send_cmds(b"rotate2"), ble_loop)
+def rotate_servo1():
+    print("in rotate_servo1")
+    asyncio.run_coroutine_threadsafe(ble_send_cmds(b"rotate_servo1"), ble_loop)
+def rotate_servo2():
+    asyncio.run_coroutine_threadsafe(ble_send_cmds(b"rotate_servo2"), ble_loop)
 
 def crying():
     asyncio.run_coroutine_threadsafe(ble_send_cmds(b"crying"), ble_loop)
