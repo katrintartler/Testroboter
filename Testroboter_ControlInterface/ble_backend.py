@@ -2,7 +2,7 @@ import threading
 import asyncio
 from bleak import BleakClient
 
-ESP_MAC = "a0:b7:65:63:d5:02"
+ESP_MAC = "00:4b:12:9b:2a:8a"
 CHAR_UUID = "abcd1234-ab12-34cd-56ef-1234567890ab"
 
 ble_loop = asyncio.new_event_loop()

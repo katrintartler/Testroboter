@@ -1,174 +1,143 @@
-#include <Arduino.h> 
-#include <NimBLEDevice.h>
-#include <DFRobotDFPlayerMini.h> 
-#include <ESP32Servo.h> 
- 
-// SERVO SETTINGS 
-Servo myServo1; 
-Servo myServo2; 
-#define SERVO1_PIN 26; // funktioniert stand 2501 nur mit magic numbers NOCHMAL ANSCHAUEN !!!
-#define SERVO2_PIN 27; 
+//#include <functions.hpp>
+#include <SchedTask.h>
+#include <SchedTaskT.h>
+#include <ServoEasing.hpp>
 
+//forward dec.
+void Servo1TargetReachedHandler(ServoEasing *aServoEasingInstance);
+void Servo2TargetReachedHandler(ServoEasing *aServoEasingInstance);
+void ServoSM(); 
 
-bool rotate_servo1_flag = false; 
-bool rotate_servo2_flag = false; 
-int pos = 0; 
-int direction = -1; 
-unsigned long lastMoveTime = 0;
-const int moveInterval = 20; // 20ms movetime 
+#define SEQUENCES 4
+#define SERVOS 4
 
-
-// SPEAKER SETTINGS 
-HardwareSerial FPSerial(2); 
- DFRobotDFPlayerMini myPlayer;
-
-bool crying_flag = false; 
-bool brabbeln_flag = false; 
-bool coughing_flag = false; 
-bool sneezing_flag = false; 
-
-class CommandCallback : 
-  public NimBLECharacteristicCallbacks {
-    void onWrite(NimBLECharacteristic* c, NimBLEConnInfo& coninfo) override {
-      std::string cmd = c->getValue();
-      //Serial.print("Received BLE command: ");
-      //Serial.println(cmd.c_str());
-
-    // SERVO Callbacks
-    if (cmd == "rotate_servo1") {
-      rotate_servo1_flag == true; 
-    }
-     if (cmd == "rotate_servo2") {
-      rotate_servo2_flag == true; 
-    }
-
-    // SPEAKER Callbacks 
-    if (cmd == "crying"){
-      crying_flag = true; 
-    }
-    if (cmd == "brabbeln") {
-      brabbeln_flag = true; 
-    }
-    if (cmd == "coughing"){
-      coughing_flag = true; 
-    }
-    if (cmd == "sneezing"){
-      sneezing_flag = true; 
-    }
-  }
-}; 
-
-
-
+ServoEasing Servo1;
+ServoEasing Servo2;
+ServoEasing Servo3; 
+ServoEasing Servo4; 
 
 void setup() {
   Serial.begin(115200);
+  Servo1.attach(26,0); 
+  Servo2.attach(25,0); 
  
-  // SPEAKER 
-  FPSerial.begin(9600, SERIAL_8N1, /*RX=*/ 18, /*TX=*/ 19);
-  if (!myPlayer.begin(FPSerial, true, true)) {
-    Serial.println("DFPlayer nicht gefunden");
-    while (true);
-  }
-
-  // SERVO
-  myServo1.attach(26); 
-  myServo2.attach(27); 
-  myServo1.write(0); 
-  myServo2.write(0);
-
-
-  // BLE init 
-  NimBLEDevice::init("Bby"); 
-  Serial.print("Name vergeben"); 
-  
-  NimBLEAddress addr = NimBLEDevice::getAddress();
-  Serial.print("BLE MAC:");
-  Serial.print(addr.toString().c_str()); 
-
-  NimBLEServer * server = NimBLEDevice::createServer();
-  NimBLEService * service = server->createService("12345678-1234-1234-1234-1234567890ab"); 
-
-   NimBLECharacteristic* characteristic =
-      service->createCharacteristic(
-          "abcd1234-ab12-34cd-56ef-1234567890ab",
-          NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE
-      );
-
-  characteristic->setCallbacks(new CommandCallback());
-  characteristic->setValue("ready");
-
-  service->start();
-
-  NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
-  adv->addServiceUUID(service->getUUID());
-  adv->start();
-
-  Serial.println("advertising");
+  Servo1.setTargetPositionReachedHandler(Servo1TargetReachedHandler);
+  Servo1.setSpeed(90);                        // This speed is taken if no further speed argument is given.
+  //Servo1TargetReachedHandler(&Servo1); // Start by calling handler which in turn calls Servo1.startEaseTo(tTargetDegree)
+  Servo2.setTargetPositionReachedHandler(Servo2TargetReachedHandler);
+  Servo2.setSpeed(90);      
 }
 
 void loop() {
- 
-  // SERVO 
-  if (rotate_servo1_flag) {
-      rotate_servo1_flag = false; 
-      if (millis() - lastMoveTime >= moveInterval) {
-      lastMoveTime = millis();
 
-      pos += direction;
+SchedBase::dispatcher(); 
 
-      if (pos >= 90) {
-        pos = 90;
-        direction = -1;
+}
+
+
+//Statemachine with Scheduled Tasks für das Ausführen von Servo Befehlen
+
+//Schedueled Task 
+SchedTask Servos(0,200,ServoSM); // beginning at 0 (startpoint), every 200ms, void ServoSM will be done 
+
+//Statemaschine
+typedef enum { // welche zustände hat die Statemachine? 
+  IDLE,
+  TWITCHING, // "zappeln" Arms and Legs (4Servos)
+}t_states;
+
+typedef enum {
+  CMD_IDLE,
+  CMD_TWITCHING,
+}t_state_commands; 
+
+typedef enum {
+  ENTRY,
+  DURING,
+}T_state_executionstate; 
+
+t_states states = IDLE; 
+t_state_commands state_commands = CMD_TWITCHING; // jz nur mal zum Ausprobieren sonst is IDLE
+T_state_executionstate state_executionstate; 
+
+
+
+//LUTs
+int Twitching_lut[SEQUENCES][SERVOS] = {
+  {0,0,0,0},
+  {0,0,0,0},
+  {0,0,0,0},
+  {0,0,0,0}
+}; 
+
+int counter1 = 0;  
+int counter2 = 0; 
+
+void Servo1TargetReachedHandler(ServoEasing *aServoEasingInstance){
+  switch(states){
+    case TWITCHING:
+    // was muss der Servo1 also Linkes Bein machen bei Twitching, wir gehen nach dem LUT
+    // Servo 1 winkel sind in der ersten Spalte des LUT geschrieben 
+      if (counter1 <=3){
+        Servo1.startEaseTo(Twitching_lut[counter1][0]);
+        counter1++; 
+        Serial.print("hallo");
+        state_commands = CMD_IDLE;
       }
-      if (pos <= 0) {
-        pos = 0;
-        direction = 1;
+      else {
+        states = IDLE; 
       }
-
-      myServo1.write(pos);
+      break; 
     }
+}
+void Servo2TargetReachedHandler(ServoEasing *aServoEasingInstance){
+  switch(states) {
+  case TWITCHING:
+    if(counter2 <= 3){
+      Servo2.setEaseTo(Twitching_lut[counter2][1]); 
+      counter2++; 
+      state_commands = CMD_IDLE; 
   }
-
-  if (rotate_servo2_flag) {
-      rotate_servo2_flag = false; 
-      if (millis() - lastMoveTime >= moveInterval) {
-      lastMoveTime = millis();
-
-      pos += direction;
-
-      if (pos >= 90) {
-        pos = 90;
-        direction = -1;
-      }
-      if (pos <= 0) {
-        pos = 0;
-        direction = 1;
-      }
-
-      myServo2.write(pos);
-    }
+  else {
+    states = IDLE; 
   }
-
-  if (crying_flag){
-    crying_flag = false; 
-     myPlayer.volume(10);
-     myPlayer.play(1);
-  }
-  if (brabbeln_flag){
-    brabbeln_flag = false; 
-    myPlayer.volume(10);
-    myPlayer.play(2);
-  }
-  if (coughing_flag){
-    coughing_flag = false; 
-    myPlayer.volume(10);
-    myPlayer.play(3);
-  }
-  if (sneezing_flag){
-    sneezing_flag = false; 
-    myPlayer.volume(10);
-    myPlayer.play(4);
+  break; 
   }
 }
 
+
+void ServoSM() {
+
+  switch (states) {
+
+    case IDLE:
+
+    switch (state_commands) {
+
+      case CMD_IDLE:
+      break; 
+
+      case CMD_TWITCHING:
+      states = TWITCHING; 
+      state_executionstate = ENTRY; 
+      break; 
+
+      default:
+      break; 
+    }
+    break; 
+    
+
+    case TWITCHING:
+    if(state_executionstate == ENTRY){
+      Serial.print("in Tw");
+      state_executionstate = DURING;
+      Servo1TargetReachedHandler(&Servo1); 
+      Servo2TargetReachedHandler(&Servo2); 
+    }
+    break; 
+
+    default:
+    break; 
+  }
+}
