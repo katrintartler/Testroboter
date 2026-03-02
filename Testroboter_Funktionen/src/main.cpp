@@ -124,27 +124,6 @@ SchedTask BLECommands(0,50,BleCmd);
 SchedTask Servos(0,200,ServoSM); // beginning at 0 (startpoint), every 200ms, void ServoSM will be done 
 
 
-// BLE 
-void BleCmd(){
-  if (tw_flag){
-    tw_flag = false; 
-    state_commands = CMD_TWITCHING; 
-  }
-  if (gm_flag){
-    gm_flag = false; 
-    state_commands = CMD_GM; 
-  }
-  if (lm_l_flag){
-    lm_l_flag = false; 
-    state_commands = CMD_LM_L_LEFT; 
-  }
-  if (lm_r_flag){
-    lm_r_flag = false; 
-    state_commands = CMD_LM_L_RIGHT; 
-  }
-}
-
-
 //Statemaschine
 typedef enum { // welche zustände hat die Statemachine? 
   IDLE,
@@ -168,9 +147,28 @@ typedef enum {
 }T_state_executionstate; 
 
 t_states states = IDLE; 
-t_state_commands state_commands = CMD_TWITCHING; // jz nur mal zum Ausprobieren sonst is IDLE
+t_state_commands state_commands; // jz nur mal zum Ausprobieren sonst is IDLE
 T_state_executionstate state_executionstate; 
 
+// BLE 
+void BleCmd(){
+  if (tw_flag){
+    tw_flag = false; 
+    state_commands = CMD_TWITCHING; 
+  }
+  if (gm_flag){
+    gm_flag = false; 
+    state_commands = CMD_GM; 
+  }
+  if (lm_l_flag){
+    lm_l_flag = false; 
+    state_commands = CMD_LM_L_LEFT; 
+  }
+  if (lm_r_flag){
+    lm_r_flag = false; 
+    state_commands = CMD_LM_L_RIGHT; 
+  }
+}
 
 //LUTs
 int TWITCHING_lut[SEQUENCES][SERVOS] = {
