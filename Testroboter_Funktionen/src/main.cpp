@@ -12,6 +12,7 @@ void Servo3TargetReachedHandler(ServoEasing *aServoEasingInstance);
 void Servo4TargetReachedHandler(ServoEasing *aServoEasingInstance);
 void ServoSM(); 
 void BleCmd(); 
+void Speaker(); 
 
 
 //Statemachine parameters
@@ -24,12 +25,21 @@ ServoEasing Servo2;
 ServoEasing Servo3; 
 ServoEasing Servo4; 
 
+//Speaker
+HardwareSerial FPSerial(2); 
+DFRobotDFPlayerMini myPlayer;
+
 //for cmd executing 
 volatile bool tw_flag = false; // Twitching mode (Arms and Legs, Servos 1-4)
 volatile bool gm_flag = false; // Gross Movement (both Legs)
 volatile bool lm_l_flag = false; // Localized Movement (left Leg)
 volatile bool lm_r_flag = false; // Localized Movement (right leg)
 //volatile so callback and Sched can run parallel 
+
+volatile bool crying_flag = false; 
+volatile bool brabbeln_flag = false; 
+volatile bool coughing_flag = false; 
+volatile bool sneezing_flag = false; 
 
 // BLE part 
 class CommandCallback : 
@@ -43,16 +53,35 @@ class CommandCallback :
       switch(cmd)
       {
         case 1: 
-        tw_flag = true; 
+          tw_flag = true; 
         break; 
+
         case 2: 
-        gm_flag = true; 
+          gm_flag = true; 
         break; 
+
         case 3:
-        lm_l_flag = true; 
+          lm_l_flag = true; 
         break; 
+
         case 4:
-        lm_r_flag = true; 
+          lm_r_flag = true; 
+        break; 
+
+        case 5: 
+          crying_flag = true; 
+        break; 
+
+        case 6: 
+          brabbeln_flag = true; 
+        break; 
+
+        case 7: 
+          coughing_flag = true; 
+        break; 
+
+        case 8: 
+          sneezing_flag = true; 
         break; 
       } 
 
@@ -63,6 +92,12 @@ class CommandCallback :
 
 void setup() {
   Serial.begin(115200);
+
+  FPSerial.begin(9600, SERIAL_8N1, /*RX=*/ 18, /*TX=*/ 19);
+  if (!myPlayer.begin(FPSerial, true, true)) {
+    Serial.println("DFPlayer nicht gefunden");
+    while (true);
+  }
 
   // BLE Setup
   // BLE init 
@@ -122,6 +157,7 @@ SchedBase::dispatcher();
 //Schedueled Tasks
 SchedTask BLECommands(0,50,BleCmd); 
 SchedTask Servos(0,200,ServoSM); // beginning at 0 (startpoint), every 200ms, void ServoSM will be done 
+SchedTask Speaker(0,100,Speaker);
 
 
 //Statemaschine
@@ -144,13 +180,13 @@ typedef enum {
 typedef enum {
   ENTRY,
   DURING,
-}T_state_executionstate; 
+}t_state_executionstate; 
 
 t_states states = IDLE; 
 t_state_commands state_commands; // jz nur mal zum Ausprobieren sonst is IDLE
-T_state_executionstate state_executionstate; 
+t_state_executionstate state_executionstate; 
 
-// BLE 
+//BLE 
 void BleCmd(){
   if (tw_flag){
     tw_flag = false; 
@@ -168,7 +204,35 @@ void BleCmd(){
     lm_r_flag = false; 
     state_commands = CMD_LM_L_RIGHT; 
   }
+  if(crying_flag){
+    crying_flag = false; 
+    // AudioTask auch in SM geben? 
+    myPlayer.volume(10);
+    myPlayer.play(1);
+  }
+  if(brabbeln_flag){
+    brabbeln_flag = false; 
+    myPlayer.volume(10);
+    myPlayer.play(2);
+  }
+  if(coughing_flag){
+    coughing_flag = false; 
+    myPlayer.volume(10);
+    myPlayer.play(3);
+  }
+  if(sneezing_flag){
+    sneezing_flag = false; 
+    myPlayer.volume(10);
+    myPlayer.play(4);
+  }
 }
+
+//Speaker
+void Speaker(){
+  
+
+}
+
 
 //LUTs
 int TWITCHING_lut[SEQUENCES][SERVOS] = {
