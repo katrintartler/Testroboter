@@ -12,7 +12,7 @@ void Servo3TargetReachedHandler(ServoEasing *aServoEasingInstance);
 void Servo4TargetReachedHandler(ServoEasing *aServoEasingInstance);
 void ServoSM(); 
 void BleCmd(); 
-void Speaker(); 
+//void Speaker(); 
 
 
 //Statemachine parameters
@@ -156,8 +156,8 @@ SchedBase::dispatcher();
 
 //Schedueled Tasks
 SchedTask BLECommands(0,50,BleCmd); 
-SchedTask Servos(0,200,ServoSM); // beginning at 0 (startpoint), every 200ms, void ServoSM will be done 
-SchedTask Speaker(0,100,Speaker);
+SchedTask Servos(0,200,ServoSM); //beginning at 0 (startpoint), every 200ms, void ServoSM will be done 
+//SchedTask Speaker(0,100,Speaker); bringt no instance Fehler??
 
 
 //Statemaschine
@@ -205,10 +205,11 @@ void BleCmd(){
     state_commands = CMD_LM_L_RIGHT; 
   }
   if(crying_flag){
-    crying_flag = false; 
     // AudioTask auch in SM geben? 
+    // Wenn eine audio ausgeführt wird kann man nicht motorsteuerungs befehle senden : optimierbar 
     myPlayer.volume(10);
     myPlayer.play(1);
+    crying_flag = false; 
   }
   if(brabbeln_flag){
     brabbeln_flag = false; 
@@ -228,10 +229,7 @@ void BleCmd(){
 }
 
 //Speaker
-void Speaker(){
-  
-
-}
+//void Speaker(){} derweil ist die Speakerfunktion im BLE Task 
 
 
 //LUTs

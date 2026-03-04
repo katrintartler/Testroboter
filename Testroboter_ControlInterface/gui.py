@@ -5,7 +5,7 @@ import ble_backend
 def create_gui():
     dpg.create_context()
 
-    with dpg.window(label="Control Panel", width=400, height=200):
+    with dpg.window(label="Control Panel", width=1000, height=800):
        
             dpg.add_button(label="[TW] Twitching ",callback= ble_backend.tw)
             dpg.add_button(label="[GM] both legs", callback= ble_backend.gm)
