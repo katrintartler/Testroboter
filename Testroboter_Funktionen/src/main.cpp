@@ -12,10 +12,15 @@ void Servo3TargetReachedHandler(ServoEasing *aServoEasingInstance);
 void Servo4TargetReachedHandler(ServoEasing *aServoEasingInstance);
 void ServoSM(); 
 void BleCmd(); 
+void HeatMonitor(); 
 //void Speaker(); 
 
 
-//Statemachine parameters
+// pins regarding Heating 
+#define HeatControl 5
+#define HeatMeassure 34
+
+//Statemachine LUTs parameters
 #define SEQUENCES 4
 #define SERVOS 4
 
@@ -40,6 +45,9 @@ volatile bool crying_flag = false;
 volatile bool brabbeln_flag = false; 
 volatile bool coughing_flag = false; 
 volatile bool sneezing_flag = false; 
+
+volatile bool heat_on_flag = false; 
+volatile bool heat_off_flag = false; 
 
 // BLE part 
 class CommandCallback : 
@@ -83,24 +91,34 @@ class CommandCallback :
         case 8: 
           sneezing_flag = true; 
         break; 
+
+        case 9:
+          heat_on_flag = true;
+        break; 
+
+        case 10: 
+          heat_off_flag = true; 
       } 
 
   }
 }; 
 
 
-
 void setup() {
   Serial.begin(115200);
 
+  // Pins regarding heating init
+  pinMode(HeatControl, OUTPUT); 
+  pinMode(HeatMeassure, INPUT); 
+
+  
   FPSerial.begin(9600, SERIAL_8N1, /*RX=*/ 18, /*TX=*/ 19);
   if (!myPlayer.begin(FPSerial, true, true)) {
     Serial.println("DFPlayer nicht gefunden");
     while (true);
   }
 
-  // BLE Setup
-  // BLE init 
+  // BLE Setup 
   NimBLEDevice::init("Bby"); 
   Serial.print("Name vergeben"); 
   
@@ -155,10 +173,16 @@ SchedBase::dispatcher();
 
 
 //Schedueled Tasks
+SchedTask Heatcontrol(0, 300, HeatMonitor); 
 SchedTask BLECommands(0,50,BleCmd); 
 SchedTask Servos(0,200,ServoSM); //beginning at 0 (startpoint), every 200ms, void ServoSM will be done 
 //SchedTask Speaker(0,100,Speaker); bringt no instance Fehler??
 
+
+void HeatMonitor(){
+  // hier die Berechung der Pt100 Werte 
+  // und das Abschalten falls es kritisch hoch werden sollte 
+}
 
 //Statemaschine
 typedef enum { // welche zustände hat die Statemachine? 
@@ -183,7 +207,7 @@ typedef enum {
 }t_state_executionstate; 
 
 t_states states = IDLE; 
-t_state_commands state_commands; // jz nur mal zum Ausprobieren sonst is IDLE
+t_state_commands state_commands /*=CMD_TWITCHING*/; // jz nur mal zum Ausprobieren sonst is IDLE
 t_state_executionstate state_executionstate; 
 
 //BLE 
@@ -226,6 +250,14 @@ void BleCmd(){
     myPlayer.volume(10);
     myPlayer.play(4);
   }
+  if(heat_on_flag){
+    heat_on_flag = false; 
+    digitalWrite(HeatControl,HIGH); 
+  }
+  if (heat_off_flag){
+    heat_off_flag = false; 
+    digitalWrite(HeatControl,HIGH); 
+  }
 }
 
 //Speaker
@@ -252,7 +284,7 @@ int LM_L_RIGHT_lut[SEQUENCES] = {50,0,50,0}; // Servo2 Right Leg
 int counter1 = 0; //Servo1 Callback
 int counter2 = 0; //Servo2 Callback 
 int counter3 = 0; //Servo3 Callback
-int counter4 = 0; //Servo 4 Callback
+int counter4 = 0; //Servo   4 Callback
 
 void Servo1TargetReachedHandler(ServoEasing *aServoEasingInstance){
   switch(states){

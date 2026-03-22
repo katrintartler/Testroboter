@@ -35,20 +35,19 @@ async def ble_send_cmds(data: bytes):
 
 
 
-
+#movement callbacks
 def tw():
     print("in twitching")
     asyncio.run_coroutine_threadsafe(ble_send_cmds(bytearray([1])), ble_loop)
-
 def gm():
     asyncio.run_coroutine_threadsafe(ble_send_cmds(bytearray([2])), ble_loop)
-
 def lm_l_left():
     asyncio.run_coroutine_threadsafe(ble_send_cmds(bytearray([3])), ble_loop)
-
 def lm_l_right():
     asyncio.run_coroutine_threadsafe(ble_send_cmds(bytearray([4])), ble_loop)
 
+
+#audio callbacks
 def crying():
     asyncio.run_coroutine_threadsafe(ble_send_cmds(bytearray([5])), ble_loop)
 def brabbeln():
@@ -57,3 +56,9 @@ def coughing():
     asyncio.run_coroutine_threadsafe(ble_send_cmds(bytearray([7])), ble_loop)
 def sneezing():
     asyncio.run_coroutine_threadsafe(ble_send_cmds(bytearray([8])), ble_loop)
+
+#heating callbacks 
+def heat_on():
+    asyncio.run_coroutine_threadsafe(ble_send_cmds(bytearray([9])), ble_loop)
+def heat_off():
+    asyncio.run_coroutine_threadsafe(ble_send_cmds(bytearray([10])), ble_loop)
