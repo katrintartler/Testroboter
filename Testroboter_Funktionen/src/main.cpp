@@ -114,8 +114,7 @@ void setup() {
   
   FPSerial.begin(9600, SERIAL_8N1, /*RX=*/ 18, /*TX=*/ 19);
   if (!myPlayer.begin(FPSerial, true, true)) {
-    Serial.println("DFPlayer nicht gefunden");
-    while (true);
+    Serial.println("DFPlayer nicht gefunden"); 
   }
 
   // BLE Setup 
@@ -256,7 +255,7 @@ void BleCmd(){
   }
   if (heat_off_flag){
     heat_off_flag = false; 
-    digitalWrite(HeatControl,HIGH); 
+    digitalWrite(HeatControl,LOW); 
   }
 }
 
